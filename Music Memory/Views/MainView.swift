@@ -55,9 +55,8 @@ struct MainView: View {
     
     private func checkInitialSetup() async {
         // Check if we've already done initial setup
-        let descriptor = FetchDescriptor<TrackedSong>(
-            fetchLimit: 1
-        )
+        var descriptor = FetchDescriptor<TrackedSong>()
+        descriptor.fetchLimit = 1
         
         do {
             let existingSongs = try modelContext.fetch(descriptor)

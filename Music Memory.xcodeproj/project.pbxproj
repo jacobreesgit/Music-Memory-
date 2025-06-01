@@ -10,9 +10,23 @@
 		070F254B2DECD6D8002A4A58 /* Music Memory.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Music Memory.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		07FDC3EB2DECD9CB00D5F418 /* Exceptions for "Music Memory" folder in "Music Memory" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Configuration/Info.plist,
+				readme.md,
+			);
+			target = 070F254A2DECD6D8002A4A58 /* Music Memory */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		070F254D2DECD6D8002A4A58 /* Music Memory */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				07FDC3EB2DECD9CB00D5F418 /* Exceptions for "Music Memory" folder in "Music Memory" target */,
+			);
 			path = "Music Memory";
 			sourceTree = "<group>";
 		};
@@ -255,7 +269,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5RP4WRQ9V2;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Music Memory/Configuration/Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -283,7 +298,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5RP4WRQ9V2;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Music Memory/Configuration/Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
