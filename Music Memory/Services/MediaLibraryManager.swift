@@ -41,7 +41,7 @@ class MediaLibraryManager: ObservableObject {
         
         // Check if we've already done the initial load
         let descriptor = FetchDescriptor<TrackedSong>()
-        let existingSongs = try modelContext.fetch(descriptor)
+        let existingSongs = try await modelContext.fetch(descriptor)
         
         if !existingSongs.isEmpty {
             print("Initial load already completed, skipping...")
@@ -60,8 +60,12 @@ class MediaLibraryManager: ObservableObject {
         let totalItems = Double(items.count)
         
         for (index, item) in items.enumerated() {
-            // Update progress
-            loadProgress = Double(index) / totalItems
+            // Update progress every 50 items for better responsiveness
+            if index % 50 == 0 {
+                loadProgress = Double(index) / totalItems
+                // Yield control to prevent UI blocking
+                await Task.yield()
+            }
             
             // Skip items without required properties
             guard let title = item.title,
@@ -71,38 +75,71 @@ class MediaLibraryManager: ObservableObject {
             
             let persistentID = item.persistentID
             
-            // Get artwork data if available
-            var artworkData: Data?
-            if let artwork = item.artwork {
-                let targetSize = CGSize(width: 100, height: 100)
-                if let image = artwork.image(at: targetSize) {
-                    artworkData = image.jpegData(compressionQuality: 0.8)
-                }
-            }
+            // ✅ Skip artwork during initial load to avoid color profile errors
+            // Artwork will be loaded lazily when needed in the UI
             
-            // Create TrackedSong
+            // Create TrackedSong without artwork
             let trackedSong = TrackedSong(
                 persistentID: persistentID,
                 title: title,
                 artist: artist,
                 albumTitle: item.albumTitle,
-                baselinePlayCount: item.playCount,
-                artworkData: artworkData
+                baselinePlayCount: item.playCount
+                // artworkData parameter omitted - will use default nil value
             )
             
             modelContext.insert(trackedSong)
             
-            // Save in batches to avoid memory issues
-            if index % 100 == 0 {
-                try modelContext.save()
+            // Save in smaller batches for better performance
+            if index % 50 == 0 {
+                try await modelContext.save()
             }
         }
         
         // Final save
-        try modelContext.save()
+        try await modelContext.save()
         loadProgress = 1.0
         
         print("Initial load completed. Imported \(items.count) songs.")
+    }
+    
+    // ✅ Method to load artwork for a specific song when needed
+    func loadArtworkForSong(_ song: TrackedSong) async {
+        guard song.artworkData == nil else { return } // Already has artwork
+        
+        let query = MPMediaQuery.songs()
+        guard let items = query.items?.first(where: { $0.persistentID == song.persistentID }),
+              let artwork = items.artwork else { return }
+        
+        let artworkData = await safeProcessArtwork(artwork)
+        
+        await MainActor.run {
+            song.artworkData = artworkData
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error saving artwork: \(error)")
+            }
+        }
+    }
+    
+    private func safeProcessArtwork(_ artwork: MPMediaItemArtwork) async -> Data? {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                autoreleasepool {
+                    let targetSize = CGSize(width: 100, height: 100)
+                    
+                    guard let image = artwork.image(at: targetSize) else {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    
+                    // Simple JPEG conversion with lower quality
+                    let data = image.jpegData(compressionQuality: 0.5)
+                    continuation.resume(returning: data)
+                }
+            }
+        }
     }
 }
 

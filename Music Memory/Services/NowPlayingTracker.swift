@@ -2,6 +2,7 @@ import Foundation
 import MediaPlayer
 import SwiftData
 import UserNotifications
+import UIKit
 
 @MainActor
 class NowPlayingTracker: ObservableObject {
@@ -70,7 +71,7 @@ class NowPlayingTracker: ObservableObject {
         )
         
         do {
-            let songs = try modelContext.fetch(descriptor)
+            let songs = try await modelContext.fetch(descriptor)
             guard let song = songs.first else {
                 // Song not in our database yet - add it
                 await addNewSong(item)
@@ -85,7 +86,7 @@ class NowPlayingTracker: ObservableObject {
             song.localPlayCount += 1
             
             // Save changes
-            try modelContext.save()
+            try await modelContext.save()
             
             // Check for rank changes and send notification if needed
             await updateRankingsAndNotify(for: song)
@@ -99,12 +100,10 @@ class NowPlayingTracker: ObservableObject {
         guard let title = item.title,
               let artist = item.artist else { return }
         
+        // ✅ Use improved artwork processing
         var artworkData: Data?
         if let artwork = item.artwork {
-            let targetSize = CGSize(width: 100, height: 100)
-            if let image = artwork.image(at: targetSize) {
-                artworkData = image.jpegData(compressionQuality: 0.8)
-            }
+            artworkData = await processArtwork(artwork)
         }
         
         let trackedSong = TrackedSong(
@@ -124,10 +123,31 @@ class NowPlayingTracker: ObservableObject {
         trackedSong.localPlayCount = 1
         
         do {
-            try modelContext.save()
+            try await modelContext.save()
             await updateRankingsAndNotify(for: trackedSong)
         } catch {
             print("Error adding new song: \(error)")
+        }
+    }
+    
+    // ✅ Much simpler artwork processing
+    private func processArtwork(_ artwork: MPMediaItemArtwork) async -> Data? {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                autoreleasepool {
+                    let targetSize = CGSize(width: 100, height: 100)
+                    
+                    // Try to get the image, but if it fails, just return nil
+                    guard let image = artwork.image(at: targetSize) else {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    
+                    // Simple JPEG conversion with lower quality to avoid color profile issues
+                    let data = image.jpegData(compressionQuality: 0.5)
+                    continuation.resume(returning: data)
+                }
+            }
         }
     }
     
@@ -138,15 +158,24 @@ class NowPlayingTracker: ObservableObject {
         )
         
         do {
-            let allSongs = try modelContext.fetch(descriptor)
+            let allSongs = try await modelContext.fetch(descriptor)
             
-            // Update rankings
-            for (index, song) in allSongs.enumerated() {
-                song.previousRank = song.lastKnownRank
-                song.lastKnownRank = index + 1
+            // ✅ Update rankings in batches to avoid blocking
+            let batchSize = 50
+            for i in stride(from: 0, to: allSongs.count, by: batchSize) {
+                let endIndex = min(i + batchSize, allSongs.count)
+                let batch = Array(allSongs[i..<endIndex])
+                
+                for (localIndex, song) in batch.enumerated() {
+                    song.previousRank = song.lastKnownRank
+                    song.lastKnownRank = i + localIndex + 1
+                }
+                
+                // Yield control every batch
+                await Task.yield()
             }
             
-            try modelContext.save()
+            try await modelContext.save()
             
             // Check if our changed song moved in rankings
             if let newRank = changedSong.lastKnownRank,

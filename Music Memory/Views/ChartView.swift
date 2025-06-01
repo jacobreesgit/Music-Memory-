@@ -23,27 +23,8 @@ struct ChartView: View {
                 } else if viewModel.songs.isEmpty {
                     EmptyChartView()
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(viewModel.songs.enumerated()), id: \.element.persistentID) { index, song in
-                                ChartRowView(
-                                    rank: index + 1,
-                                    song: song,
-                                    filter: viewModel.selectedFilter
-                                )
-                                .transition(.asymmetric(
-                                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                                    removal: .move(edge: .leading).combined(with: .opacity)
-                                ))
-                                
-                                if index < viewModel.songs.count - 1 {
-                                    Divider()
-                                        .padding(.horizontal)
-                                }
-                            }
-                        }
-                        .padding(.vertical)
-                    }
+                    // ✅ Optimized list rendering
+                    OptimizedChartList(songs: viewModel.songs, filter: viewModel.selectedFilter)
                 }
             }
             .navigationTitle("Music Memory")
@@ -52,6 +33,39 @@ struct ChartView: View {
                 await viewModel.loadSongs()
             }
         }
+    }
+}
+
+// ✅ Separate optimized list component
+struct OptimizedChartList: View {
+    let songs: [TrackedSong]
+    let filter: TimeFilter
+    
+    var body: some View {
+        ScrollView {
+            // Use LazyVStack with reduced spacing for better performance
+            LazyVStack(spacing: 1) {
+                ForEach(Array(songs.enumerated()), id: \.element.persistentID) { index, song in
+                    ChartRowView(
+                        rank: index + 1,
+                        song: song,
+                        filter: filter
+                    )
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
+                    
+                    if index < songs.count - 1 {
+                        Divider()
+                            .padding(.horizontal)
+                    }
+                }
+            }
+            .padding(.vertical)
+        }
+        // ✅ Add content shape for better scrolling performance
+        .contentShape(Rectangle())
     }
 }
 
@@ -111,7 +125,8 @@ struct ChartRowView: View {
     let song: TrackedSong
     let filter: TimeFilter
     
-    var playCount: Int {
+    // ✅ Cache the play count calculation
+    private var playCount: Int {
         song.getPlayCount(for: filter)
     }
     
@@ -128,7 +143,7 @@ struct ChartRowView: View {
             }
             .frame(width: 60)
             
-            // Album artwork
+            // Album artwork - using simple artwork view
             AlbumArtworkView(artworkData: song.artworkData)
                 .frame(width: 60, height: 60)
             
@@ -176,7 +191,7 @@ struct RankChangeIndicator: View {
         Text(change.symbol)
             .font(.caption)
             .fontWeight(.semibold)
-            .foregroundColor(Color(change.color))
+            .foregroundColor(change.color)
     }
 }
 

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 @Model
 final class TrackedSong {
@@ -99,14 +100,15 @@ enum RankChange: Equatable {
         }
     }
     
-    var color: String {
+    // ✅ Fixed: Return SwiftUI Color instead of String
+    var color: Color {
         switch self {
         case .new, .up:
-            return "green"
+            return .green
         case .down:
-            return "red"
+            return .red
         case .same:
-            return "gray"
+            return .gray
         }
     }
 }

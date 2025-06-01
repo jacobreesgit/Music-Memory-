@@ -15,7 +15,8 @@ struct MusicMemoryApp: App {
             let modelConfiguration = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: false,
-                allowsSave: true
+                allowsSave: true,
+                cloudKitDatabase: .none
             )
             
             modelContainer = try ModelContainer(
